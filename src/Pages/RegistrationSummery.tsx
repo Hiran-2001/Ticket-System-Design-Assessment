@@ -26,19 +26,19 @@ function RegistrationSummery() {
     };
 
     const handleNext = () => {
-        if (!termsAccepted || !consentGiven || !promoCode) {
+        if (!termsAccepted || !consentGiven) {
             alert('Please accept the terms and conditions and consent to proceed');
             return;
         }
         // Handle next step navigation
-        navigate('thank-you')
+        navigate('/thank-you')
     };
     const activeStep = 3
     return (
         <div className="min-h-screen flex flex-col"
             style={{
                 backgroundImage: `url(${backgroundImage})`,
-                backgroundSize: '100%', // Zoom in slightly
+                backgroundSize: '100%', 
             }}    >
 
             <NavBar />
@@ -54,9 +54,7 @@ function RegistrationSummery() {
                             <h2 className="text-2xl font-bold">Registration Summary</h2>
                         </div>
 
-                        {/* Content */}
                         <div className="py-6 space-y-6">
-                            {/* Ticket Information */}
                             {
                                 applied ?
 
@@ -100,7 +98,6 @@ function RegistrationSummery() {
                                         </div>
                                     </div>}
 
-                            {/* Promo Code Section */}
                             <div className="bg-green-50 py-4 px-2 border border-dotted rounded-lg">
                                 <label className={`block text-base font-medium ${applied ? 'text-black' : 'text-green-600'}  mb-2`}>
                                     Have a promo code?
@@ -141,7 +138,6 @@ function RegistrationSummery() {
 
                             </div>
 
-                            {/* Total */}
                             <div className="">
                                 <div className="flex justify-end items-center space-x-2">
                                     <p className="text-lg font-semibold text-gray-900">Total:</p>
@@ -150,7 +146,6 @@ function RegistrationSummery() {
                                 </div>
                             </div>
 
-                            {/* Terms and Conditions */}
                             <div className="space-y-2">
                                 <label className="flex items-start space-x-3 cursor-pointer">
                                     <input
@@ -188,7 +183,6 @@ function RegistrationSummery() {
                                 </label>
                             </div>
 
-                            {/* Action Buttons */}
 
                         </div>
                     </div>
