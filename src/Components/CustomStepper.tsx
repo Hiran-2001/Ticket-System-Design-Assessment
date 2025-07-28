@@ -1,21 +1,25 @@
+
+
 const steps = [1, 2, 3, 4];
 
-export default function CustomStepper({activeStep}:any) {
+interface CustomStepperProps {
+  activeStep: number;
+}
+
+export default function CustomStepper({ activeStep }: CustomStepperProps) {
   return (
-    <div className="flex items-center max-w-2xl px-10">
+    <div className="flex items-center w-full max-w-md sm:max-w-lg lg:max-w-2xl px-4 sm:px-6 lg:px-10">
       {steps.map((step, index) => (
-        <div key={step} className="flex items-center w-full relative">
+        <div key={step} className="flex items-center flex-1 relative">
           <div
-            className={`z-10 w-8 h-8 rounded-full flex items-center justify-center text-lg font-semibold
-              ${index < activeStep ? 'bg-green-600 text-white' : ''}
-              ${index === activeStep ? 'bg-green-600 text-white' : ''}
-              ${index > activeStep ? 'border border-gray-300 text-gray-500 bg-white' : ''}
+            className={`z-10 w-6 sm:w-7 lg:w-8 h-6 sm:h-7 lg:h-8 rounded-full flex items-center justify-center text-sm sm:text-base lg:text-lg font-semibold
+              ${index <= activeStep ? 'bg-green-600 text-white' : 'border border-gray-300 text-gray-500 bg-white'}
             `}
           >
             {index < activeStep ? (
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5"
+                className="h-4 sm:h-5 w-4 sm:w-5"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -27,15 +31,14 @@ export default function CustomStepper({activeStep}:any) {
               step
             )}
           </div>
-
           {index < steps.length - 1 && (
-            <div className="flex-1 mx-2 relative">
-              <div className="h-1.5 w-20 bg-gray-300 rounded-xl" />
+            <div className="flex-1 mx-1 sm:mx-2 relative">
+              <div className="h-1 sm:h-1.5 w-full bg-gray-300 rounded-xl" />
               {index < activeStep && (
-                <div className="absolute top-0 left-0 h-1.5 w-20 bg-green-600 rounded-xl" />
+                <div className="absolute top-0 left-0 h-1 sm:h-1.5 w-full bg-green-600 rounded-xl" />
               )}
               {index === activeStep && (
-                <div className="absolute top-0 left-0 h-1.5 w-1/2 bg-green-600 rounded-xl" />
+                <div className="absolute top-0 left-0 h-1 sm:h-1.5 w-1/2 bg-green-600 rounded-xl" />
               )}
             </div>
           )}
