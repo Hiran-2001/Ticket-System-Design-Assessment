@@ -1,15 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { TextField, Button } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import CustomStepper from './CustomStepper';
-import RegistrationBadge from './RegistrationBadge';
 import NavBar from './NavBar';
 import Footer from './Footer';
+import CustomStepper from './CustomStepper';
 import backgroundImage from '../assets/register-page-bg.png';
 import badgeBg from '../assets/green-bg.png';
 import { tickets, workshopOptions, serviceOptions } from '../constants/TicketDetails';
 import { countriesOfResidenceAndCodes, nationalities, regions } from '../constants/locationData';
 import { useTicketContext } from '../context/TicketContext';
+import RegistrationBadge from './RegistrationBadge';
 
 interface ValidationErrors {
   firstName?: string;
@@ -24,35 +24,20 @@ interface ValidationErrors {
   industry?: string;
   selectedWorkshops?: string;
   selectedServices?: string;
-  ticketType?: string;
 }
 
 const RegistrationPage = () => {
   const navigate = useNavigate();
-  const { selectedTickets, ticketAssignments, assignTicket, getTicketStatus, attendees, setAttendees, updateAttendee } = useTicketContext();
-  const [validationErrors, setValidationErrors] = useState<any>({});
-  const errorRefs = React.useRef<{ [key: string]: HTMLElement | null }>({});
+  const { selectedTickets, totalEUR, attendee, setAttendee, updateAttendee } = useTicketContext();
+  const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [tempSelectedServices, setTempSelectedServices] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [applied, setApplied] = useState(false);
-  const [currentAttendeeIndex, setCurrentAttendeeIndex] = useState(0);
+  const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
 
-  const totalAttendees = Object.values(selectedTickets).reduce((sum, qty) => sum + qty, 0);
-  const ticketStatus = getTicketStatus(currentAttendeeIndex);
-  const assignedTicketIndex = ticketAssignments[currentAttendeeIndex];
-  const assignedTicket = assignedTicketIndex !== undefined ? tickets[assignedTicketIndex] : null;
-  const ticketSpecificWorkshops = assignedTicket ? workshopOptions.filter(option => assignedTicket.workshops.includes(option.value)) : [];
-  const ticketSpecificServices = assignedTicket ? serviceOptions.filter(option => assignedTicket.services.includes(option.value)) : [];
+    const totalAttendees = Object.values(selectedTickets).reduce((sum, qty) => sum + qty, 0);
 
-  const ticketSummary = tickets
-    .map((ticket, index) => ({
-      title: ticket.title,
-      quantity: selectedTickets[index] || 0,
-      price: ticket.isFree ? 0 : ticket.price * 0.91,
-    }))
-    .filter(item => item.quantity > 0);
-  const totalCost = ticketSummary.reduce((sum, item) => sum + item.quantity * item.price, 0);
 
   useEffect(() => {
     if (totalAttendees === 0) {
@@ -63,6 +48,21 @@ const RegistrationPage = () => {
   }, [totalAttendees, navigate]);
 
 
+  const selectedTicketIndices = Object.keys(selectedTickets).filter(i => selectedTickets[Number(i)] > 0).map(Number);
+  const ticketSpecificWorkshops = Array.from(new Set(
+    selectedTicketIndices.flatMap(index => tickets[index].workshops)
+  )).map(value => workshopOptions.find(opt => opt.value === value)!).filter(Boolean);
+  const ticketSpecificServices = Array.from(new Set(
+    selectedTicketIndices.flatMap(index => tickets[index].services)
+  )).map(value => serviceOptions.find(opt => opt.value === value)!).filter(Boolean);
+
+  const ticketSummary = tickets
+    .map((ticket, index) => ({
+      title: ticket.title,
+      quantity: selectedTickets[index] || 0,
+      price: ticket.isFree ? 0 : ticket.price * 0.91,
+    }))
+    .filter(item => item.quantity > 0);
 
   const validateEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -74,89 +74,60 @@ const RegistrationPage = () => {
     return mobileRegex.test(number) && number.length >= 7 && number.length <= 15;
   };
 
-  const validateForm = (attendeeIndex: number): boolean => {
-    const errors: any = {};
-    const attendee = attendees[attendeeIndex];
-    const ticket = ticketAssignments[attendeeIndex] !== undefined ? tickets[ticketAssignments[attendeeIndex]] : null;
+  const validateForm = (): boolean => {
+    const errors: ValidationErrors = {};
 
-    if (!attendee.firstName.trim()) {
-      errors[`attendee${attendeeIndex}`] = { ...errors[`attendee${attendeeIndex}`], firstName: 'First name is required' };
-    }
-    if (!attendee.lastName.trim()) {
-      errors[`attendee${attendeeIndex}`] = { ...errors[`attendee${attendeeIndex}`], lastName: 'Last name is required' };
-    }
-    if (!attendee.countryOfResidence.trim()) {
-      errors[`attendee${attendeeIndex}`] = { ...errors[`attendee${attendeeIndex}`], countryOfResidence: 'Country of residence is required' };
-    }
-    if (!attendee.emailAddress.trim()) {
-      errors[`attendee${attendeeIndex}`] = { ...errors[`attendee${attendeeIndex}`], emailAddress: 'Email address is required' };
+    if (!attendee?.firstName.trim()) errors.firstName = 'First name is required';
+    if (!attendee?.lastName.trim()) errors.lastName = 'Last name is required';
+    if (!attendee?.countryOfResidence.trim()) errors.countryOfResidence = 'Country of residence is required';
+    if (!attendee?.emailAddress.trim()) {
+      errors.emailAddress = 'Email address is required';
     } else if (!validateEmail(attendee.emailAddress)) {
-      errors[`attendee${attendeeIndex}`] = { ...errors[`attendee${attendeeIndex}`], emailAddress: 'Please enter a valid email address' };
+      errors.emailAddress = 'Please enter a valid email address';
     }
-    if (attendee.confirmEmailAddress && attendee.confirmEmailAddress !== attendee.emailAddress) {
-      errors[`attendee${attendeeIndex}`] = { ...errors[`attendee${attendeeIndex}`], confirmEmailAddress: 'Email addresses do not match' };
+    if (attendee?.confirmEmailAddress && attendee.confirmEmailAddress !== attendee.emailAddress) {
+      errors.confirmEmailAddress = 'Email addresses do not match';
     }
-    if (!attendee.mobileNumber.trim()) {
-      errors[`attendee${attendeeIndex}`] = { ...errors[`attendee${attendeeIndex}`], mobileNumber: 'Mobile number is required' };
+    if (!attendee?.mobileNumber.trim()) {
+      errors.mobileNumber = 'Mobile number is required';
     } else if (!validateMobileNumber(attendee.mobileNumber)) {
-      errors[`attendee${attendeeIndex}`] = { ...errors[`attendee${attendeeIndex}`], mobileNumber: 'Mobile number must contain only numbers (7-15 digits)' };
+      errors.mobileNumber = 'Mobile number must contain only numbers (7-15 digits)';
     }
-    if (!attendee.companyName.trim()) {
-      errors[`attendee${attendeeIndex}`] = { ...errors[`attendee${attendeeIndex}`], companyName: 'Company name is required' };
+    if (!attendee?.companyName.trim()) errors.companyName = 'Company name is required';
+    if (!attendee?.jobTitle.trim()) errors.jobTitle = 'Job title is required';
+    if (!attendee?.companyType.trim()) errors.companyType = 'Company type is required';
+    if (!attendee?.industry.trim()) errors.industry = 'Industry is required';
+    if (selectedTicketIndices.some(i => tickets[i].isWorkshopsRequired) && attendee?.selectedWorkshops.length === 0) {
+      errors.selectedWorkshops = 'Please select at least one workshop';
     }
-    if (!attendee.jobTitle.trim()) {
-      errors[`attendee${attendeeIndex}`] = { ...errors[`attendee${attendeeIndex}`], jobTitle: 'Job title is required' };
-    }
-    if (!attendee.companyType.trim()) {
-      errors[`attendee${attendeeIndex}`] = { ...errors[`attendee${attendeeIndex}`], companyType: 'Company type is required' };
-    }
-    if (!attendee.industry.trim()) {
-      errors[`attendee${attendeeIndex}`] = { ...errors[`attendee${attendeeIndex}`], industry: 'Industry is required' };
-    }
-    if (ticket?.isWorkshopsRequired && attendee.selectedWorkshops.length === 0) {
-      errors[`attendee${attendeeIndex}`] = { ...errors[`attendee${attendeeIndex}`], selectedWorkshops: 'Please select at least one workshop' };
-    }
-    if (ticket?.isServicesRequired && attendee.selectedServices.length === 0) {
-      errors[`attendee${attendeeIndex}`] = { ...errors[`attendee${attendeeIndex}`], selectedServices: 'Please select at least one service' };
-    }
-    if (ticketAssignments[attendeeIndex] === undefined) {
-      errors[`attendee${attendeeIndex}`] = { ...errors[`attendee${attendeeIndex}`], ticketType: 'Please select a ticket type' };
+    if (selectedTicketIndices.some(i => tickets[i].isServicesRequired) && attendee?.selectedServices.length === 0) {
+      errors.selectedServices = 'Please select at least one service';
     }
 
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
   };
 
-  const handleNext = (action: string) => {
-    if (action === 'next') {
-      if (!validateForm(currentAttendeeIndex)) {
-        const errorFields = Object.keys(validationErrors);
-        if (errorFields.length > 0) {
-          const firstErrorField = errorFields[0];
-          const errorElement = errorRefs.current[`attendee${currentAttendeeIndex}_${firstErrorField}`];
-          if (errorElement) {
-            errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }
+  const handleNext = () => {
+    if (!validateForm()) {
+      const errorFields = Object.keys(validationErrors);
+      if (errorFields.length > 0) {
+        const errorElement = document.getElementById(`field-${errorFields[0]}`);
+        if (errorElement) {
+          errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
-        return;
       }
-      if (currentAttendeeIndex < totalAttendees - 1) {
-        setCurrentAttendeeIndex(prev => prev + 1);
-      } else {
-        navigate('/register-summary');
-      }
-    } else {
-      if (currentAttendeeIndex > 0) {
-        setCurrentAttendeeIndex(prev => prev - 1);
-      } else {
-        navigate('/');
-      }
+      return;
     }
+    navigate('/register-summary');
   };
 
-  const openModal = (attendeeIndex: number) => {
-    setCurrentAttendeeIndex(attendeeIndex);
-    setTempSelectedServices([...attendees[attendeeIndex].selectedServices]);
+  const handlePrevious = () => {
+    navigate('/ticket-summary');
+  };
+
+  const openModal = () => {
+    setTempSelectedServices([...(attendee?.selectedServices || [])]);
     setIsModalOpen(true);
   };
 
@@ -166,14 +137,11 @@ const RegistrationPage = () => {
   };
 
   const applySelection = () => {
-    updateAttendee(currentAttendeeIndex, { selectedServices: tempSelectedServices });
+    updateAttendee({ selectedServices: tempSelectedServices });
     setApplied(true);
     closeModal();
-    if (tempSelectedServices.length > 0 && validationErrors[`attendee${currentAttendeeIndex}`]?.selectedServices) {
-      setValidationErrors((prev: any) => ({
-        ...prev,
-        [`attendee${currentAttendeeIndex}`]: { ...prev[`attendee${currentAttendeeIndex}`], selectedServices: undefined },
-      }));
+    if (tempSelectedServices.length > 0 && validationErrors.selectedServices) {
+      setValidationErrors(prev => ({ ...prev, selectedServices: undefined }));
     }
   };
 
@@ -189,189 +157,136 @@ const RegistrationPage = () => {
     setTempSelectedServices(updatedServices);
   };
 
-  const handleInputChange = (e: any, attendeeIndex: number) => {
+  const handleInputChange = (e: any) => {
     const { name, value } = e.target;
     if (name === 'mobileNumber') {
       const numericValue = value.replace(/[^0-9]/g, '');
-      updateAttendee(attendeeIndex, { [name]: numericValue });
-      if (validationErrors[`attendee${attendeeIndex}`]?.[name] && numericValue && validateMobileNumber(numericValue)) {
-        setValidationErrors((prev: any) => ({
-          ...prev,
-          [`attendee${attendeeIndex}`]: { ...prev[`attendee${attendeeIndex}`], [name]: undefined },
-        }));
+      updateAttendee({ [name]: numericValue });
+      if (validationErrors.mobileNumber && numericValue && validateMobileNumber(numericValue)) {
+        setValidationErrors(prev => ({ ...prev, mobileNumber: undefined }));
       }
       return;
     }
-    if (name === 'ticketType') {
-      assignTicket(attendeeIndex, parseInt(value));
-      setValidationErrors((prev: any) => ({
-        ...prev,
-        [`attendee${attendeeIndex}`]: { ...prev[`attendee${attendeeIndex}`], ticketType: undefined },
-      }));
-      updateAttendee(attendeeIndex, { selectedServices: [], selectedWorkshops: [] });
-      return;
-    }
     if (name === 'selectedWorkshops') {
-      const updatedWorkshops = attendees[attendeeIndex].selectedWorkshops.includes(value)
-        ? attendees[attendeeIndex].selectedWorkshops.filter(w => w !== value)
-        : [...attendees[attendeeIndex].selectedWorkshops, value];
+      const updatedWorkshops = attendee?.selectedWorkshops.includes(value)
+        ? attendee.selectedWorkshops.filter(w => w !== value)
+        : [...(attendee?.selectedWorkshops || []), value];
       if (updatedWorkshops.length > 5) {
         alert('Maximum 5 workshops can be selected');
         return;
       }
-      updateAttendee(attendeeIndex, { selectedWorkshops: updatedWorkshops });
-      if (updatedWorkshops.length > 0 && validationErrors[`attendee${attendeeIndex}`]?.selectedWorkshops) {
-        setValidationErrors((prev: any) => ({
-          ...prev,
-          [`attendee${attendeeIndex}`]: { ...prev[`attendee${attendeeIndex}`], selectedWorkshops: undefined },
-        }));
+      updateAttendee({ selectedWorkshops: updatedWorkshops });
+      if (updatedWorkshops.length > 0 && validationErrors.selectedWorkshops) {
+        setValidationErrors(prev => ({ ...prev, selectedWorkshops: undefined }));
       }
       return;
     }
-    updateAttendee(attendeeIndex, { [name]: value });
-    if (validationErrors[`attendee${attendeeIndex}`]?.[name]) {
-      if (name === 'emailAddress' && value && validateEmail(value)) {
-        setValidationErrors((prev: any) => ({
-          ...prev,
-          [`attendee${attendeeIndex}`]: { ...prev[`attendee${attendeeIndex}`], [name]: undefined },
-        }));
-      } else if (name === 'confirmEmailAddress' && value === attendees[attendeeIndex].emailAddress) {
-        setValidationErrors((prev: any) => ({
-          ...prev,
-          [`attendee${attendeeIndex}`]: { ...prev[`attendee${attendeeIndex}`], [name]: undefined },
-        }));
-      } else if (value.trim()) {
-        setValidationErrors((prev: any) => ({
-          ...prev,
-          [`attendee${attendeeIndex}`]: { ...prev[`attendee${attendeeIndex}`], [name]: undefined },
-        }));
+    updateAttendee({ [name]: value });
+    if (validationErrors[name as keyof ValidationErrors] && value.trim()) {
+      if (name === 'emailAddress' && validateEmail(value)) {
+        setValidationErrors(prev => ({ ...prev, emailAddress: undefined }));
+      } else if (name === 'confirmEmailAddress' && value === attendee?.emailAddress) {
+        setValidationErrors(prev => ({ ...prev, confirmEmailAddress: undefined }));
+      } else {
+        setValidationErrors(prev => ({ ...prev, [name]: undefined }));
       }
     }
   };
 
-  const getFieldError = (fieldName: string, attendeeIndex: number): boolean => {
-    return !!validationErrors[`attendee${attendeeIndex}`]?.[fieldName];
+  const getFieldError = (fieldName: keyof ValidationErrors): boolean => {
+    return !!validationErrors[fieldName];
   };
 
-  const getFieldHelperText = (fieldName: string, attendeeIndex: number): string => {
-    return validationErrors[`attendee${attendeeIndex}`]?.[fieldName] || '';
+  const getFieldHelperText = (fieldName: keyof ValidationErrors): string => {
+    return validationErrors[fieldName] || '';
+    
   };
 
+
+  const openTicketModal = () => {
+    setIsTicketModalOpen(true);
+  };
+
+  const closeTicketModal = () => {
+    setIsTicketModalOpen(false);
+  };
   return (
-    <div
-      className="min-h-screen flex flex-col bg-cover bg-center"
-      style={{ backgroundImage: `url(${backgroundImage})` }}
-    >
+    <div className="min-h-screen flex flex-col bg-cover bg-center" style={{ backgroundImage: `url(${backgroundImage})` }}>
       <NavBar loginBtn={true} />
       <div className="flex justify-center mt-4 mb-2 px-4 sm:px-6 lg:px-8">
-        <CustomStepper activeStep={currentAttendeeIndex} totalSteps={totalAttendees + 1} />
+        <CustomStepper activeStep={0} totalSteps={2} />
       </div>
       <div className="flex justify-center items-center p-4 sm:p-6 lg:p-8">
         <div className="w-full max-w-7xl">
           <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6 border border-green-950 flex flex-col lg:flex-row gap-4 sm:gap-6">
             <div className="w-full lg:w-2/3 border border-gray-400/15 rounded">
-              <div className="px-4 sm:px-5 bg-gradient-to-r from-green-500 to-green-800 h-auto min-h-[80px] text-white p-2 sm:p-3 rounded-t-lg flex flex-col sm:flex-row justify-between items-center">
+              <div className="px-4 sm:px-5 bg-gradient-to-r from-green-500 to-green-800 text-white p-2 sm:p-3 rounded-t-lg flex justify-between items-center">
                 <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold">Registration Information</h2>
-                <h5>Attendee {currentAttendeeIndex + 1}</h5>
-                <span className="border bg-white/10 text-sm sm:text-lg lg:text-xl rounded-lg border-gray-400 px-3 sm:px-5 py-1 sm:py-2 mt-2 sm:mt-0">
-                  {assignedTicket ? assignedTicket.title : 'Select Ticket'} -{' '}
-                  {assignedTicket && assignedTicket.isFree ? 'FREE' : assignedTicket ? `EUR ${(assignedTicket.price * 0.91).toFixed(2)}` : 'N/A'} incl. 9% VAT
-                </span>
-
+                <div className="flex items-center gap-2 sm:gap-4">
+                  <span className="border bg-white/10 text-sm sm:text-lg lg:text-xl rounded-lg border-gray-400 px-3 sm:px-5 py-1 sm:py-2">
+                    {ticketSummary.length > 0
+                      ? `${ticketSummary[0].title} - ${ticketSummary[0].price === 0 ? 'FREE' : `EUR ${(ticketSummary[0].price * ticketSummary[0].quantity).toFixed(2)}`} incl. 9% VAT`
+                      : 'No Tickets Selected - N/A'}
+                  </span>
+                  {ticketSummary.length > 1 && (
+                    <button
+                      onClick={openTicketModal}
+                      className="whitespace-nowrap px-3 sm:px-4 py-3 sm:py-2 bg-gradient-to-r from-green-600 to-green-900 text-white rounded-md text-xs sm:text-sm font-medium hover:from-green-700 hover:to-green-800"
+                    >
+                      View all
+                    </button>
+                  )}
+                </div>
               </div>
               <div className="max-w-4xl mx-auto p-4 sm:p-6 bg-white">
                 <div className="space-y-4 sm:space-y-6">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-                    <div ref={(el: any) => (errorRefs.current[`attendee${currentAttendeeIndex}_ticketType`] = el)}>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 sm:mb-2">
-                        Ticket Type <span className="text-red-600">*</span>
-                      </label>
-                      <TextField
-                        name="ticketType"
-                        value={ticketAssignments[currentAttendeeIndex] !== undefined ? ticketAssignments[currentAttendeeIndex] : ''}
-                        onChange={(e) => handleInputChange(e, currentAttendeeIndex)}
-                        variant="outlined"
-                        fullWidth
-                        select
-                        SelectProps={{ native: true }}
-                        error={getFieldError('ticketType', currentAttendeeIndex)}
-                        helperText={getFieldHelperText('ticketType', currentAttendeeIndex)}
-                      >
-                        <option value="">Select Ticket Type</option>
-                        {ticketStatus.map((ticket) => {
-                          let displayText = ticket.title;
-                          if (ticket.isCurrentlyAssigned) {
-                            displayText += ' ✓ (Currently Selected)';
-                          } else if (ticket.remaining > 0) {
-                            displayText += ` (${ticket.remaining} remaining)`;
-                          } else {
-                            displayText += ' (Fully assigned)';
-                          }
-                          const isDisabled = ticket.remaining === 0 && !ticket.isCurrentlyAssigned;
-                          return (
-                            <option key={ticket.index} value={ticket.index} disabled={isDisabled}>
-                              {displayText}
-                            </option>
-                          );
-                        })}
-                      </TextField>
-                    </div>
-                    <div></div>
-                  </div>
-                  {!assignedTicket && (
-                    <div className="text-red-600 text-sm mt-4">
-                      Please select a ticket type to view available services and workshops.
-                    </div>
-                  )}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-                    <div ref={(el: any) => (errorRefs.current[`attendee${currentAttendeeIndex}_firstName`] = el)}>
+                    <div id="field-firstName">
                       <label className="block text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                         First name <span className="text-red-600">*</span>
                       </label>
                       <TextField
                         name="firstName"
-                        value={attendees[currentAttendeeIndex]?.firstName || ''}
-                        onChange={(e) => handleInputChange(e, currentAttendeeIndex)}
+                        value={attendee?.firstName || ''}
+                        onChange={handleInputChange}
                         variant="outlined"
                         fullWidth
                         required
-                        className="w-full"
-                        error={getFieldError('firstName', currentAttendeeIndex)}
-                        helperText={getFieldHelperText('firstName', currentAttendeeIndex)}
+                        error={getFieldError('firstName')}
+                        helperText={getFieldHelperText('firstName')}
                       />
                     </div>
-                    <div ref={(el: any) => (errorRefs.current[`attendee${currentAttendeeIndex}_lastName`] = el)}>
+                    <div id="field-lastName">
                       <label className="block text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                         Last name <span className="text-red-600">*</span>
                       </label>
                       <TextField
                         name="lastName"
-                        value={attendees[currentAttendeeIndex]?.lastName || ''}
-                        onChange={(e) => handleInputChange(e, currentAttendeeIndex)}
+                        value={attendee?.lastName || ''}
+                        onChange={handleInputChange}
                         variant="outlined"
                         fullWidth
                         required
-                        error={getFieldError('lastName', currentAttendeeIndex)}
-                        helperText={getFieldHelperText('lastName', currentAttendeeIndex)}
-                        className="w-full"
+                        error={getFieldError('lastName')}
+                        helperText={getFieldHelperText('lastName')}
                       />
                     </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-                    <div ref={(el: any) => (errorRefs.current['countryOfResidence'] = el)}>
+                    <div id="field-countryOfResidence">
                       <label className="block text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                         Country of residence <span className="text-red-600">*</span>
                       </label>
                       <TextField
                         name="countryOfResidence"
-                        value={attendees[currentAttendeeIndex]?.countryOfResidence || ''}
-                        onChange={(e) => handleInputChange(e, currentAttendeeIndex)}
+                        value={attendee?.countryOfResidence || ''}
+                        onChange={handleInputChange}
                         variant="outlined"
                         fullWidth
                         select
                         SelectProps={{ native: true }}
-                        error={getFieldError('countryOfResidence', currentAttendeeIndex)}
-                        helperText={getFieldHelperText('countryOfResidence', currentAttendeeIndex)}
+                        error={getFieldError('countryOfResidence')}
+                        helperText={getFieldHelperText('countryOfResidence')}
                       >
                         <option value="">Select your residence</option>
                         {countriesOfResidenceAndCodes.map((country, idx) => (
@@ -385,8 +300,8 @@ const RegistrationPage = () => {
                       </label>
                       <TextField
                         name="region"
-                        value={attendees[currentAttendeeIndex]?.region || ''}
-                        onChange={(e) => handleInputChange(e, currentAttendeeIndex)}
+                        value={attendee?.region || ''}
+                        onChange={handleInputChange}
                         variant="outlined"
                         fullWidth
                         select
@@ -400,33 +315,33 @@ const RegistrationPage = () => {
                     </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-                    <div ref={(el: any) => (errorRefs.current['emailAddress'] = el)}>
+                    <div id="field-emailAddress">
                       <label className="block text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                         Email address <span className="text-red-600">*</span>
                       </label>
                       <TextField
                         name="emailAddress"
-                        value={attendees[currentAttendeeIndex]?.emailAddress || ''}
-                        onChange={(e) => handleInputChange(e, currentAttendeeIndex)}
+                        value={attendee?.emailAddress || ''}
+                        onChange={handleInputChange}
                         variant="outlined"
                         fullWidth
                         required
-                        error={getFieldError('emailAddress', currentAttendeeIndex)}
-                        helperText={getFieldHelperText('emailAddress', currentAttendeeIndex)}
+                        error={getFieldError('emailAddress')}
+                        helperText={getFieldHelperText('emailAddress')}
                       />
                     </div>
-                    <div ref={(el: any) => (errorRefs.current['confirmEmailAddress'] = el)}>
+                    <div id="field-confirmEmailAddress">
                       <label className="block text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                         Confirm Email address
                       </label>
                       <TextField
                         name="confirmEmailAddress"
-                        value={attendees[currentAttendeeIndex]?.confirmEmailAddress || ''}
-                        onChange={(e) => handleInputChange(e, currentAttendeeIndex)}
+                        value={attendee?.confirmEmailAddress || ''}
+                        onChange={handleInputChange}
                         variant="outlined"
                         fullWidth
-                        error={getFieldError('confirmEmailAddress', currentAttendeeIndex)}
-                        helperText={getFieldHelperText('confirmEmailAddress', currentAttendeeIndex)}
+                        error={getFieldError('confirmEmailAddress')}
+                        helperText={getFieldHelperText('confirmEmailAddress')}
                       />
                     </div>
                   </div>
@@ -437,8 +352,8 @@ const RegistrationPage = () => {
                       </label>
                       <TextField
                         name="nationality"
-                        value={attendees[currentAttendeeIndex]?.nationality || ''}
-                        onChange={(e) => handleInputChange(e, currentAttendeeIndex)}
+                        value={attendee?.nationality || ''}
+                        onChange={handleInputChange}
                         variant="outlined"
                         fullWidth
                         select
@@ -450,15 +365,15 @@ const RegistrationPage = () => {
                         ))}
                       </TextField>
                     </div>
-                    <div ref={(el: any) => (errorRefs.current['mobileNumber'] = el)}>
+                    <div id="field-mobileNumber">
                       <label className="block text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                         Mobile number <span className="text-red-600">*</span>
                       </label>
                       <div className="flex flex-col sm:flex-row gap-2">
                         <TextField
                           name="countryCode"
-                          value={attendees[currentAttendeeIndex]?.countryCode || ''}
-                          onChange={(e) => handleInputChange(e, currentAttendeeIndex)}
+                          value={attendee?.countryCode || ''}
+                          onChange={handleInputChange}
                           variant="outlined"
                           select
                           SelectProps={{ native: true }}
@@ -470,69 +385,66 @@ const RegistrationPage = () => {
                         </TextField>
                         <TextField
                           name="mobileNumber"
-                          value={attendees[currentAttendeeIndex]?.mobileNumber || ''}
-                          onChange={(e) => handleInputChange(e, currentAttendeeIndex)}
+                          value={attendee?.mobileNumber || ''}
+                          onChange={handleInputChange}
                           variant="outlined"
                           className="w-full"
                           required
                           placeholder="Enter numbers only"
-                          error={getFieldError('mobileNumber', currentAttendeeIndex)}
-                          helperText={getFieldHelperText('mobileNumber', currentAttendeeIndex)}
-                          inputProps={{
-                            inputMode: 'numeric',
-                            pattern: '[0-9]*',
-                          }}
+                          error={getFieldError('mobileNumber')}
+                          helperText={getFieldHelperText('mobileNumber')}
+                          inputProps={{ inputMode: 'numeric', pattern: '[0-9]*' }}
                         />
                       </div>
                     </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-                    <div ref={(el: any) => (errorRefs.current['companyName'] = el)}>
+                    <div id="field-companyName">
                       <label className="block text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                         Company name <span className="text-red-600">*</span>
                       </label>
                       <TextField
                         name="companyName"
-                        value={attendees[currentAttendeeIndex]?.companyName || ''}
-                        onChange={(e) => handleInputChange(e, currentAttendeeIndex)}
+                        value={attendee?.companyName || ''}
+                        onChange={handleInputChange}
                         variant="outlined"
                         fullWidth
                         required
-                        error={getFieldError('companyName', currentAttendeeIndex)}
-                        helperText={getFieldHelperText('companyName', currentAttendeeIndex)}
+                        error={getFieldError('companyName')}
+                        helperText={getFieldHelperText('companyName')}
                       />
                     </div>
-                    <div ref={(el: any) => (errorRefs.current['jobTitle'] = el)}>
+                    <div id="field-jobTitle">
                       <label className="block text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                         Job title <span className="text-red-600">*</span>
                       </label>
                       <TextField
                         name="jobTitle"
-                        value={attendees[currentAttendeeIndex]?.jobTitle || ''}
-                        onChange={(e) => handleInputChange(e, currentAttendeeIndex)}
+                        value={attendee?.jobTitle || ''}
+                        onChange={handleInputChange}
                         variant="outlined"
                         fullWidth
                         required
-                        error={getFieldError('jobTitle', currentAttendeeIndex)}
-                        helperText={getFieldHelperText('jobTitle', currentAttendeeIndex)}
+                        error={getFieldError('jobTitle')}
+                        helperText={getFieldHelperText('jobTitle')}
                       />
                     </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-                    <div ref={(el: any) => (errorRefs.current['companyType'] = el)}>
+                    <div id="field-companyType">
                       <label className="block text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                         Company type <span className="text-red-600">*</span>
                       </label>
                       <TextField
                         name="companyType"
-                        value={attendees[currentAttendeeIndex]?.companyType || ''}
-                        onChange={(e) => handleInputChange(e, currentAttendeeIndex)}
+                        value={attendee?.companyType || ''}
+                        onChange={handleInputChange}
                         variant="outlined"
                         fullWidth
                         select
                         SelectProps={{ native: true }}
-                        error={getFieldError('companyType', currentAttendeeIndex)}
-                        helperText={getFieldHelperText('companyType', currentAttendeeIndex)}
+                        error={getFieldError('companyType')}
+                        helperText={getFieldHelperText('companyType')}
                       >
                         <option value="">Please Select</option>
                         <option value="startup">Startup</option>
@@ -543,20 +455,20 @@ const RegistrationPage = () => {
                         <option value="academic">Academic Institution</option>
                       </TextField>
                     </div>
-                    <div ref={(el: any) => (errorRefs.current['industry'] = el)}>
+                    <div id="field-industry">
                       <label className="block text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                         Industry <span className="text-red-600">*</span>
                       </label>
                       <TextField
                         name="industry"
-                        value={attendees[currentAttendeeIndex]?.industry || ''}
-                        onChange={(e) => handleInputChange(e, currentAttendeeIndex)}
+                        value={attendee?.industry || ''}
+                        onChange={handleInputChange}
                         variant="outlined"
                         fullWidth
                         select
                         SelectProps={{ native: true }}
-                        error={getFieldError('industry', currentAttendeeIndex)}
-                        helperText={getFieldHelperText('industry', currentAttendeeIndex)}
+                        error={getFieldError('industry')}
+                        helperText={getFieldHelperText('industry')}
                       >
                         <option value="">Please Select</option>
                         <option value="technology">Technology</option>
@@ -572,30 +484,31 @@ const RegistrationPage = () => {
                       </TextField>
                     </div>
                   </div>
-                  {assignedTicket && ticketSpecificServices.length > 0 ? (
-                    <div className="mt-4">
+                  {ticketSpecificServices.length > 0 && (
+                    <div className="mt-4" id="field-selectedServices">
                       <div className="flex flex-col sm:flex-row justify-between items-start mb-4">
-                        <div className="flex flex-col" ref={(el: any) => (errorRefs.current[`attendee${currentAttendeeIndex}_selectedServices`] = el)}>
+                        <div className="flex flex-col">
                           <p className="text-sm font-medium text-gray-700">
-                            What products & services are you interested in? {assignedTicket?.isWorkshopsRequired && <span className="text-red-600">*</span>}
+                            What products & services are you interested in?{' '}
+                            {selectedTicketIndices.some(i => tickets[i].isServicesRequired) && <span className="text-red-600">*</span>}
                           </p>
-                          {validationErrors[`attendee${currentAttendeeIndex}`]?.selectedServices && (
-                            <span className="text-red-600 text-sm mt-1">{validationErrors[`attendee${currentAttendeeIndex}`].selectedServices}</span>
+                          {validationErrors.selectedServices && (
+                            <span className="text-red-600 text-sm mt-1">{validationErrors.selectedServices}</span>
                           )}
                         </div>
                         <button
-                          onClick={() => openModal(currentAttendeeIndex)}
+                          onClick={openModal}
                           type="button"
                           className="px-4 py-2 text-white text-sm font-medium rounded-md bg-gradient-to-r from-red-500 to-red-950 mt-2 sm:mt-0"
                         >
                           SELECT SERVICES
                         </button>
                       </div>
-                      {attendees[currentAttendeeIndex]?.selectedServices.length > 0 && (
+                      {attendee && attendee?.selectedServices.length > 0 && (
                         <div className="mt-4">
                           <p className="text-base font-semibold">Selected Services</p>
                           <div className="flex flex-wrap gap-2 my-3">
-                            {attendees[currentAttendeeIndex].selectedServices.map((service, idx) => (
+                            {attendee?.selectedServices.map((service, idx) => (
                               <p key={idx} className="bg-gray-300 rounded-2xl px-3 py-1 text-gray-600 text-sm">
                                 {serviceOptions.find(opt => opt.value === service)?.label || service}
                               </p>
@@ -604,20 +517,17 @@ const RegistrationPage = () => {
                         </div>
                       )}
                     </div>
-                  ) : assignedTicket && ticketSpecificServices.length === 0 ? (
-                    <div className="mt-4 text-sm text-gray-600">
-                      No services available for this ticket.
-                    </div>
-                  ) : null}
-                  {assignedTicket && ticketSpecificWorkshops.length > 0 ? (
-                    <div className="mt-4">
+                  )}
+                  {ticketSpecificWorkshops.length > 0 && (
+                    <div className="mt-4" id="field-selectedWorkshops">
                       <div className="flex flex-col sm:flex-row justify-between items-start mb-4">
-                        <div className="flex flex-col" ref={(el: any) => (errorRefs.current[`attendee${currentAttendeeIndex}_selectedWorkshops`] = el)}>
+                        <div className="flex flex-col">
                           <p className="text-sm font-medium text-gray-700">
-                            Select Workshop (Maximum 5 can Select) {assignedTicket.isWorkshopsRequired && <span className="text-red-600">*</span>}
+                            Select Workshop (Maximum 5 can Select){' '}
+                            {selectedTicketIndices.some(i => tickets[i].isWorkshopsRequired) && <span className="text-red-600">*</span>}
                           </p>
-                          {validationErrors[`attendee${currentAttendeeIndex}`]?.selectedWorkshops && (
-                            <span className="text-red-600 text-sm mt-1">{validationErrors[`attendee${currentAttendeeIndex}`].selectedWorkshops}</span>
+                          {validationErrors.selectedWorkshops && (
+                            <span className="text-red-600 text-sm mt-1">{validationErrors.selectedWorkshops}</span>
                           )}
                         </div>
                       </div>
@@ -627,8 +537,8 @@ const RegistrationPage = () => {
                             <label key={workshop.value} className="flex items-center space-x-3 cursor-pointer">
                               <input
                                 type="checkbox"
-                                checked={attendees[currentAttendeeIndex]?.selectedWorkshops.includes(workshop.value)}
-                                onChange={() => handleInputChange({ target: { name: 'selectedWorkshops', value: workshop.value } }, currentAttendeeIndex)}
+                                checked={attendee?.selectedWorkshops.includes(workshop.value)}
+                                onChange={() => handleInputChange({ target: { name: 'selectedWorkshops', value: workshop.value } })}
                                 className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
                               />
                               <span className="text-sm text-gray-700">{workshop.label}</span>
@@ -636,11 +546,11 @@ const RegistrationPage = () => {
                           ))}
                         </div>
                       </div>
-                      {attendees[currentAttendeeIndex]?.selectedWorkshops.length > 0 && (
+                      {attendee && attendee?.selectedWorkshops?.length > 0 && (
                         <div className="mt-4">
                           <p className="text-base font-semibold">Selected Workshops</p>
                           <div className="flex flex-wrap gap-2 my-3">
-                            {attendees[currentAttendeeIndex].selectedWorkshops.map((workshop, idx) => (
+                            {attendee?.selectedWorkshops.map((workshop, idx) => (
                               <p key={idx} className="bg-gray-300 rounded-2xl px-3 py-1 text-gray-600 text-sm">
                                 {workshopOptions.find(opt => opt.value === workshop)?.label || workshop}
                               </p>
@@ -649,11 +559,7 @@ const RegistrationPage = () => {
                         </div>
                       )}
                     </div>
-                  ) : assignedTicket && ticketSpecificWorkshops.length === 0 ? (
-                    <div className="mt-4 text-sm text-gray-600">
-                      No workshops available for this ticket.
-                    </div>
-                  ) : null}
+                  )}
                 </div>
               </div>
             </div>
@@ -673,7 +579,7 @@ const RegistrationPage = () => {
                     <div className="border-t border-white/30 mt-3 pt-2">
                       <div className="flex justify-between font-semibold text-sm sm:text-base">
                         <span>Total (incl. 9% VAT)</span>
-                        <span>{totalCost === 0 ? 'FREE' : `EUR ${totalCost.toFixed(2)}`}</span>
+                        <span>{totalEUR === 0 ? 'FREE' : `EUR ${totalEUR.toFixed(2)}`}</span>
                       </div>
                     </div>
                   </>
@@ -681,26 +587,24 @@ const RegistrationPage = () => {
                   <p className="text-sm text-white/80">No tickets selected.</p>
                 )}
               </div>
-              <RegistrationBadge formData={attendees[currentAttendeeIndex] || {}} />
+              <RegistrationBadge formData={attendee || {}} />
             </div>
           </div>
           <div className="mt-4 sm:mt-6 flex justify-center gap-3">
-            {totalAttendees > 1 && currentAttendeeIndex > 0 && (
-              <Button
-                variant="contained"
-                onClick={() => handleNext('previous')}
-                className="bg-gradient-to-r from-purple-950 to-gray-800 text-xs sm:text-sm"
-              >
-                PREVIOUS
-              </Button>
-            )}
             <Button
               variant="contained"
-              onClick={() => handleNext('next')}
-              className="bg-gradient-to-r from-green-500 to-green-950 text-xs sm:text-sm"
-              disabled={!attendees[currentAttendeeIndex]}
+              onClick={handlePrevious}
+              className="bg-gradient-to-r from-purple-950 to-gray-800 text-xs sm:text-sm"
             >
-              {totalAttendees > 1 && currentAttendeeIndex < totalAttendees - 1 ? 'NEXT ATTENDEE' : 'NEXT'}
+              PREVIOUS
+            </Button>
+            <Button
+              variant="contained"
+              onClick={handleNext}
+              className="bg-gradient-to-r from-green-500 to-green-950 text-xs sm:text-sm"
+              disabled={!attendee}
+            >
+              NEXT
             </Button>
           </div>
         </div>
@@ -732,8 +636,10 @@ const RegistrationPage = () => {
               </div>
               <div className="mb-4 sm:mb-6">
                 <p className="text-sm text-gray-700">
-                  Select Services for {assignedTicket?.title || 'Selected Ticket'}.{' '}
-                  {assignedTicket?.isServicesRequired && <span className="text-red-600">At least one service required.</span>}
+                  Select Services for all tickets.{' '}
+                  {selectedTicketIndices.some(i => tickets[i].isServicesRequired) && (
+                    <span className="text-red-600">At least one service required.</span>
+                  )}
                 </p>
               </div>
               {filteredServices.length > 0 && (
@@ -785,6 +691,43 @@ const RegistrationPage = () => {
                 className="px-4 sm:px-6 py-2 bg-gradient-to-r from-green-600 to-green-900 text-white rounded-md text-xs sm:text-sm"
               >
                 APPLY
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isTicketModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col">
+            <div
+              className="bg-gradient-to-r from-green-400 to-green-600 text-white p-4 relative"
+              style={{ backgroundImage: `url(${badgeBg})`, backgroundSize: 'cover' }}
+            >
+              <h2 className="text-lg sm:text-xl font-semibold">Selected Tickets</h2>
+              <button
+                onClick={closeTicketModal}
+                className="absolute top-4 right-4 w-8 h-8 rounded-full bg-green-700 hover:bg-green-800 flex items-center justify-center text-white font-bold"
+              >
+                X
+              </button>
+            </div>
+            <div className="p-4 sm:p-6 overflow-y-auto flex-1">
+              <div className="space-y-3">
+                {ticketSummary.map((item, index) => (
+                  <div key={index} className="flex justify-between text-sm text-gray-700">
+                    <span>{item.title}</span>
+                    <span>Quantity: {item.quantity}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="border-t border-gray-200 p-4 sm:p-6 flex justify-end">
+              <button
+                onClick={closeTicketModal}
+                className="px-4 py-2 border-[2px] border-gray-600 text-gray-700 rounded-md hover:bg-gray-50 text-xs sm:text-sm"
+              >
+                CLOSE
               </button>
             </div>
           </div>
