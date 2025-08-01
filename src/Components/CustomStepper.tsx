@@ -1,13 +1,15 @@
 
 
-const steps = [1, 2, 3, 4];
 
 interface CustomStepperProps {
   activeStep: number;
+  totalSteps: number;
 }
 
-export default function CustomStepper({ activeStep }: CustomStepperProps) {
-  return (
+export default function CustomStepper({ activeStep, totalSteps }: CustomStepperProps) {
+  const steps = Array.from({ length: totalSteps }, (_, i) => i + 1);
+
+    return (
     <div className="flex items-center w-full max-w-md sm:max-w-lg lg:max-w-2xl px-4 sm:px-6 lg:px-10">
       {steps.map((step, index) => (
         <div key={step} className="flex items-center flex-1 relative">

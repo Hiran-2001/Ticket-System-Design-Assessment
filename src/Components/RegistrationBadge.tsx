@@ -1,7 +1,11 @@
 import badgeImage from "../assets/badge-image.png";
 import badgeBg from "../assets/green-bg.png";
 
-const RegistrationBadge = () => {
+const RegistrationBadge= ({formData}:any) => {
+  const fullName = `${formData.firstName} ${formData.lastName}`.trim() || 'FULL NAME';
+  const jobTitle = formData.jobTitle || 'JOB TITLE';
+  const companyName = formData.companyName || 'COMPANY NAME';
+  const countryOfResidence = formData.countryOfResidence || 'COUNTRY OF RESIDENCE';
   return (
     <div className="min-h-[24rem] sm:min-h-[26rem] lg:min-h-[28rem] rounded-lg flex justify-center p-4 sm:p-6">
       <div className="w-full max-w-md sm:max-w-lg lg:max-w-2xl bg-white rounded-t-lg shadow-lg overflow-hidden">
@@ -20,17 +24,25 @@ const RegistrationBadge = () => {
         </div>
         <div className="space-y-6 sm:space-y-8 px-4 sm:px-6 py-4">
           <div className="flex flex-col items-center space-y-3 sm:space-y-4">
-            <div className="text-gray-500 text-sm sm:text-base lg:text-lg font-medium uppercase tracking-wider">
-              FULL NAME
+            <div className={`text-sm sm:text-base lg:text-lg font-medium uppercase tracking-wider text-center ${
+              fullName !== 'FULL NAME' ? 'text-black' : 'text-gray-500'
+            }`}>
+              {fullName}
             </div>
-            <div className="text-gray-400 text-xs sm:text-sm font-medium uppercase tracking-wider">
-              JOB TITLE
+            <div className={`text-xs sm:text-sm font-medium uppercase tracking-wider text-center ${
+              jobTitle !== 'JOB TITLE' ? 'text-black' : 'text-gray-400'
+            }`}>
+              {jobTitle}
             </div>
-            <div className="text-gray-400 text-xs sm:text-sm font-medium uppercase tracking-wider">
-              COMPANY NAME
+            <div className={`text-xs sm:text-sm font-medium uppercase tracking-wider text-center ${
+              companyName !== 'COMPANY NAME' ? 'text-black' : 'text-gray-400'
+            }`}>
+              {companyName}
             </div>
-            <div className="text-gray-400 text-xs sm:text-sm font-medium uppercase tracking-wider">
-              COUNTRY OF RESIDENCE
+            <div className={`text-xs sm:text-sm font-medium uppercase tracking-wider text-center ${
+              countryOfResidence !== 'COUNTRY OF RESIDENCE' ? 'text-black' : 'text-gray-400'
+            }`}>
+              {countryOfResidence}
             </div>
           </div>
           <div className="border border-gray-200">

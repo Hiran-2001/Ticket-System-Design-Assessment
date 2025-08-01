@@ -1,22 +1,26 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import gitex from '../assets/GITEX.png';
+import { useTicketContext } from '../context/TicketContext';
 
 const TicketCard = ({
+  index,
   title,
+  subtitle,
   price,
   isFree,
   backgroundColor,
   backroundImage,
   isExclusive,
   isBestSeller,
+  showFeatures,
   features,
 }: any) => {
-  const [tickets, setTickets] = useState(25);
-  const navigate = useNavigate();
 
-  const handleIncrement = () => setTickets((prev) => prev + 1);
-  const handleDecrement = () => setTickets((prev) => (prev > 0 ? prev - 1 : 0));
+
+  const { selectedTickets, updateTicket } = useTicketContext();
+  const quantity = selectedTickets[index] || 0;
+
+  const increment = () => updateTicket(index, quantity + 1);
+  const decrement = () => updateTicket(index, Math.max(quantity - 1, 0));
 
   return (
     <div className="relative w-full max-w-[445px] mx-auto h-auto min-h-[340px] sm:min-h-[360px] lg:min-h-[380px] rounded-3xl overflow-hidden shadow-lg text-white flex flex-col">
@@ -53,20 +57,18 @@ const TicketCard = ({
       )}
 
       <div
-        className={`relative z-20 bg-gradient-to-r ${backgroundColor} ${
-          isBestSeller || isExclusive ? 'px-12 sm:px-20 lg:px-24 py-3 sm:py-4 pt-4 sm:pt-6' : 'px-4 sm:px-6 lg:px-8 py-3 sm:py-4 pt-4 sm:pt-6'
-        }`}
+        className={`relative z-20 bg-gradient-to-r ${backgroundColor} ${isBestSeller || isExclusive ? 'px-12 sm:px-20 lg:px-24 py-3 sm:py-4 pt-4 sm:pt-6' : 'px-4 sm:px-6 lg:px-8 py-3 sm:py-4 pt-4 sm:pt-6'
+          }`}
       >
         <h2 className="text-xs sm:text-sm font-bold uppercase">{title}</h2>
         <p className="text-[10px] sm:text-xs text-yellow-300 mt-1 font-semibold">VIEW DETAILS →</p>
       </div>
 
-      <div className="relative z-20 px-4 sm:px-6 lg:px-8 pt-2 sm:pt-3">
-        <p className={`text-xs sm:text-sm mb-3 sm:mb-4 ${!isFree ? 'mt-8 sm:mt-10' : ''}`}>
-          Visitor Passes provide <span className="text-green-400 font-semibold">3 DAYS ACCESS</span> to GITEX NIGERIA
-          exhibition and all free conference
+      <div className="relative z-20 px-4 sm:px-6 lg:px-8 py-3 sm:py-2 flex-1">
+        <p className="text-base sm:text-base mb-3 sm:mb-4">
+          {subtitle}
         </p>
-        {isFree ? (
+        {showFeatures ? (
           <ul className="flex flex-wrap text-[10px] sm:text-xs gap-2 sm:gap-3">
             {features.map((item: any, idx: number) => (
               <li
@@ -74,9 +76,8 @@ const TicketCard = ({
                 className="flex items-center gap-1 sm:gap-2 bg-white/10 px-2 sm:px-3 py-1 rounded-full whitespace-nowrap w-fit max-w-full mr-2 mb-2"
               >
                 <div
-                  className={`w-3 sm:w-4 h-3 sm:h-4 rounded-full flex items-center justify-center text-[8px] sm:text-xs ${
-                    item?.isActive ? 'bg-green-600 text-black' : 'bg-green-500/20 text-white/10'
-                  }`}
+                  className={`w-3 sm:w-4 h-3 sm:h-4 rounded-full flex items-center justify-center text-[8px] sm:text-xs ${item?.isActive ? 'bg-green-600 text-black' : 'bg-green-500/20 text-white/10'
+                    }`}
                 >
                   ✓
                 </div>
@@ -93,21 +94,14 @@ const TicketCard = ({
 
       <div className="relative z-20 flex justify-between items-center py-2 sm:py-3 mt-2 sm:mt-3 mx-4 sm:mx-6 lg:mx-8">
         <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-white to-transparent"></div>
-        {isFree ? (
-          <div className="flex w-full justify-between py-2 items-center">
+
+        <div className="flex w-full justify-between py-2 items-center">
+          {isFree ? (<div className="flex items-center space-x-2 relative">
             <div>
               <p className="text-xs sm:text-sm font-bold">FREE</p>
               <p className="text-[10px] sm:text-xs font-thin text-gray-400">INCL. 19% VAT</p>
             </div>
-            <button
-              onClick={() => navigate('/register')}
-              className="bg-white text-black text-xs sm:text-sm font-semibold px-3 sm:px-4 h-7 sm:h-8 rounded"
-            >
-              BUY NOW
-            </button>
-          </div>
-        ) : (
-          <div className="flex w-full justify-between py-2 items-center">
+          </div>) : (
             <div className="flex items-center space-x-2 relative">
               <div className="relative inline-flex items-center">
                 <p className="text-xs sm:text-sm font-bold text-white mr-1">USD</p>
@@ -119,23 +113,24 @@ const TicketCard = ({
               </p>
               <p className="text-[10px] sm:text-xs text-gray-300 ml-1">Incl. 20% VAT</p>
             </div>
-            <div className="bg-white rounded-md h-7 sm:h-8 border border-white flex items-center">
-              <button
-                onClick={handleDecrement}
-                className="bg-black text-white text-xs sm:text-sm font-semibold px-2 h-full rounded-l-md"
-              >
-                -
-              </button>
-              <span className="px-2 sm:px-3 text-black text-xs sm:text-sm font-bold">{tickets}</span>
-              <button
-                onClick={handleIncrement}
-                className="bg-black text-white text-xs sm:text-sm font-semibold px-2 h-full rounded-r-md"
-              >
-                +
-              </button>
-            </div>
+          )}
+          <div className="bg-white rounded-md h-7 sm:h-8 border border-white flex items-center">
+            <button
+              onClick={decrement}
+              className="bg-black text-white text-xs sm:text-sm font-semibold px-2 h-full rounded-l-md"
+            >
+              -
+            </button>
+            <span className="px-2 sm:px-3 text-black text-xs sm:text-sm font-bold">{quantity}</span>
+            <button
+              onClick={increment}
+              className="bg-black text-white text-xs sm:text-sm font-semibold px-2 h-full rounded-r-md"
+            >
+              +
+            </button>
           </div>
-        )}
+        </div>
+
       </div>
     </div>
   );

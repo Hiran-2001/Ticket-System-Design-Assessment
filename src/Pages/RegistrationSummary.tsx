@@ -1,25 +1,40 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import CustomStepper from "../Components/CustomStepper";
 import Footer from "../Components/Footer";
 import NavBar from "../Components/NavBar";
 import backgroundImage from "../assets/register-page-bg.png";
 import { Button } from "@mui/material";
 import { useNavigate } from "react-router-dom";
+import { useTicketContext } from "../context/TicketContext";
 
 interface RegistrationSummaryProps {
   activeStep?: number;
 }
 
 function RegistrationSummary({ activeStep = 3 }: RegistrationSummaryProps) {
+  const { selectedTickets } = useTicketContext();
   const [promoCode, setPromoCode] = useState('');
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [consentGiven, setConsentGiven] = useState(false);
+  const [termsError, setTermsError] = useState(false);
+  const [consentError, setConsentError] = useState(false);
   const [applied, setApplied] = useState(false);
+  const { totalEUR } = useTicketContext();
+
+  const totalAttendees = Object.values(selectedTickets).reduce((sum, qty) => sum + qty, 0);
+const displayedTotal = applied ? totalEUR * 0.85 : totalEUR;
 
   const navigate = useNavigate();
 
+  useEffect(() => {
+    if (totalAttendees === 0) {
+      alert('Please select at least one ticket');
+      navigate('/');
+      return;
+    }
+  },[])
+
   const handleApplyPromo = (action: string) => {
-    console.log('Applying promo code:', promoCode);
     action === "Apply" ? setApplied(true) : setApplied(false);
   };
 
@@ -28,10 +43,16 @@ function RegistrationSummary({ activeStep = 3 }: RegistrationSummaryProps) {
   };
 
   const handleNext = () => {
-    if (!termsAccepted || !consentGiven) {
-      alert('Please accept the terms and conditions and consent to proceed');
+    const isTermsAccepted = termsAccepted;
+    const isConsentGiven = consentGiven;
+
+    setTermsError(!isTermsAccepted);
+    setConsentError(!isConsentGiven);
+
+    if (!isTermsAccepted || !isConsentGiven) {
       return;
     }
+
     navigate('/thank-you');
   };
 
@@ -42,7 +63,7 @@ function RegistrationSummary({ activeStep = 3 }: RegistrationSummaryProps) {
     >
       <NavBar />
       <div className="flex justify-center mt-4 sm:mt-6 lg:mt-7 mb-2 px-4 sm:px-6 lg:px-8">
-        <CustomStepper activeStep={activeStep} />
+        <CustomStepper activeStep={activeStep} totalSteps={totalAttendees + 1} />
       </div>
       <div className="flex justify-center items-center p-4 sm:p-6 lg:p-8">
         <div className="w-full max-w-4xl sm:max-w-5xl lg:max-w-7xl">
@@ -91,9 +112,8 @@ function RegistrationSummary({ activeStep = 3 }: RegistrationSummaryProps) {
                     value={promoCode}
                     onChange={(e) => setPromoCode(e.target.value)}
                     placeholder={applied ? (promoCode || 'GITEX15') : "Enter promo code"}
-                    className={`flex-1 px-3 py-1.5 sm:py-2 ${
-                      applied ? "bg-gray-200" : "bg-white"
-                    } border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500`}
+                    className={`flex-1 px-3 py-1.5 sm:py-2 ${applied ? "bg-gray-200" : "bg-white"
+                      } border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500`}
                   />
                   <button
                     onClick={() => handleApplyPromo("Apply")}
@@ -113,7 +133,7 @@ function RegistrationSummary({ activeStep = 3 }: RegistrationSummaryProps) {
                           Promo code applied: <p className="text-green-600 ml-1">{promoCode || "GITEX15"}</p>
                         </div>
                         <div className="flex text-xs sm:text-sm">
-                          Promo code applied: <p className="text-green-600 ml-1">15% (EUR 0.06 incl. VAT)</p>
+                          Promo code applied: <p className="text-green-600 ml-1">15% (EUR {(totalEUR * 0.15).toFixed(2)} incl. VAT)</p>
                         </div>
                         <div className="flex text-xs sm:text-sm">
                           Applied to: <p className="text-green-600 ml-1">2 lowest-priced tickets</p>
@@ -133,7 +153,9 @@ function RegistrationSummary({ activeStep = 3 }: RegistrationSummaryProps) {
               </div>
               <div className="flex justify-end items-center gap-1 sm:gap-2">
                 <p className="text-base sm:text-lg font-semibold text-gray-900">Total:</p>
-                <p className="text-base sm:text-lg font-semibold text-gray-900">EUR 300</p>
+                <p className={`text-base sm:text-lg font-semibold ${applied ? 'text-green-600' : 'text-gray-900'}`}>
+                  EUR {displayedTotal.toFixed(2)}
+                </p>
                 <p className="text-xs sm:text-sm font-semibold text-gray-900">incl. 19% VAT</p>
               </div>
               <div className="space-y-2 sm:space-y-3">
@@ -141,8 +163,11 @@ function RegistrationSummary({ activeStep = 3 }: RegistrationSummaryProps) {
                   <input
                     type="checkbox"
                     checked={termsAccepted}
-                    onChange={(e) => setTermsAccepted(e.target.checked)}
-                    className="w-5 sm:w-6 lg:w-8 h-5 sm:h-6 lg:h-8 text-green-600 border-gray-300 rounded focus:ring-green-500 mt-1"
+                    onChange={(e) => {
+                      setTermsAccepted(e.target.checked);
+                      setTermsError(false);
+                    }}
+                    className="w-4 sm:w-6 lg:w-8 h-5 sm:h-8 lg:h-8 text-green-600 border-gray-300 rounded focus:ring-green-500 mt-1"
                   />
                   <span className="text-sm sm:text-base text-gray-700 leading-relaxed">
                     I have read and accept the{' '}
@@ -159,12 +184,18 @@ function RegistrationSummary({ activeStep = 3 }: RegistrationSummaryProps) {
                     <span className="text-red-600">*</span>
                   </span>
                 </label>
+                {termsError && (
+                  <p className="text-red-600 text-xs sm:text-sm ml-1">You must accept the terms and conditions.</p>
+                )}
                 <label className="flex items-start gap-2 sm:gap-3 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={consentGiven}
-                    onChange={(e) => setConsentGiven(e.target.checked)}
-                    className="w-5 sm:w-6 lg:w-8 h-5 sm:h-6 lg:h-8 text-green-600 border-gray-300 rounded focus:ring-green-500 mt-1"
+                    onChange={(e) => {
+                      setConsentGiven(e.target.checked);
+                      setConsentError(false);
+                    }}
+                    className="w-2 sm:w-6 lg:w-6 h-5 sm:h-6 lg:h-8 text-green-600 border-gray-300 rounded focus:ring-green-500 mt-1"
                   />
                   <span className="text-sm sm:text-base text-gray-700 leading-relaxed">
                     I hereby consent the use of my data by the organiser, exhibitors and sponsors of DWTC & KAOUN
@@ -172,6 +203,9 @@ function RegistrationSummary({ activeStep = 3 }: RegistrationSummaryProps) {
                     sending of newsletters at any time. <span className="text-red-600">*</span>
                   </span>
                 </label>
+                {consentError && (
+                  <p className="text-red-600 text-xs sm:text-sm ml-1">You must give consent to continue.</p>
+                )}
               </div>
             </div>
           </div>
